@@ -304,10 +304,9 @@ def main():
                 min_amount = get_min_amount()
                 check_count = 0  # Сбрасываем счетчик
                 first_check = True  # Нужно перезагрузить страницу после завершения работы
-
-            # Ждем 10 секунд перед следующей проверкой
-            print(f"\n⏸️  Пауза 10 секунд до следующей проверки...")
-            time.sleep(10)
+            son = 5
+            print(f"\n⏸️  Пауза {son} секунд до следующей проверки...")
+            time.sleep(son)
 
     except KeyboardInterrupt:
         print("\n\n⚠️  Работа бота остановлена пользователем.")
