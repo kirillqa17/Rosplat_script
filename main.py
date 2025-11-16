@@ -42,6 +42,10 @@ def send_telegram_message(message):
             return True
         else:
             print(f"❌ Ошибка отправки в Telegram: {response.status_code}")
+            try:
+                print(f"   Ответ API: {response.json()}")
+            except:
+                pass
             return False
 
     except Exception as e:
@@ -95,7 +99,9 @@ def check_page_for_requests(driver, min_amount, page_num):
                 print(f"  [{idx}/{total_requests}] ID: {payout_id}, Метод: {method}, Сумма: {amount} руб.")
 
                 # Проверяем условия: метод С2С и сумма больше минимальной
-                if method == "С2С" and amount >= min_amount:
+                if amount >= min_amount:
+                    print("Сумма подходит но я сосал пенис")
+                if (method == "С2С" or method == "C2C") and amount >= min_amount:
                     print(f"\n✅ ПОДХОДИТ! ID: {payout_id}, Метод: {method}, Сумма: {amount} >= {min_amount}")
 
                     # Находим кнопку "В работу" в последней ячейке
@@ -106,16 +112,15 @@ def check_page_for_requests(driver, min_amount, page_num):
                     print(f"✅ Заявка взята в работу! ID: {payout_id}")
 
                     # Отправляем уведомление в Telegram
-                    telegram_message = f"""
-🎉 <b>Заявка взята в работу!</b>
-
-📋 <b>ID:</b> {payout_id}
-🏦 <b>Банк:</b> {bank}
-💳 <b>Метод:</b> {method}
-📱 <b>Телефон:</b> {phone}
-💰 <b>Сумма:</b> {amount} ₽
-⏰ <b>Время:</b> {time.strftime('%H:%M:%S %d.%m.%Y')}
-"""
+                    telegram_message = (
+                        f"🎉 <b>Заявка взята в работу!</b>\n\n"
+                        f"📋 <b>ID:</b> {payout_id}\n"
+                        f"🏦 <b>Банк:</b> {bank}\n"
+                        f"💳 <b>Метод:</b> {method}\n"
+                        f"💳 <b>Карта:</b> {phone}\n"
+                        f"💰 <b>Сумма:</b> {amount} ₽\n"
+                        f"⏰ <b>Время:</b> {time.strftime('%H:%M:%S %d.%m.%Y')}"
+                    )
                     send_telegram_message(telegram_message)
 
                     time.sleep(3)
@@ -237,16 +242,38 @@ def main():
 
     # Запрашиваем минимальную сумму у пользователя
     min_amount = get_min_amount()
+    son = 5
+
 
     # Настройка опций браузера
     chrome_options = Options()
+
+    # User-Agent для обхода детекции автоматизации
+    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+
+    # Отключаем флаги автоматизации
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+
+    # Дополнительные опции
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--remote-debugging-port=9222")
 
     # Настройка и запуск браузера
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    # Скрываем признаки автоматизации через JavaScript
+    driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+        'source': '''
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+        '''
+    })
+
     wait = WebDriverWait(driver, 30)
 
     try:
@@ -269,7 +296,7 @@ def main():
         print(f"Начинаю мониторинг заявок с параметрами:")
         print(f"  - Метод оплаты: С2С")
         print(f"  - Минимальная сумма: {min_amount} руб.")
-        print(f"  - Интервал проверки: 10 секунд")
+        print(f"  - Интервал проверки: {son} секунд")
         print(f"  - Проверка нескольких страниц: Да")
         print(f"  - Telegram уведомления: Включены")
         print("\n" + "="*50 + "\n")
@@ -304,7 +331,6 @@ def main():
                 min_amount = get_min_amount()
                 check_count = 0  # Сбрасываем счетчик
                 first_check = True  # Нужно перезагрузить страницу после завершения работы
-            son = 5
             print(f"\n⏸️  Пауза {son} секунд до следующей проверки...")
             time.sleep(son)
 
