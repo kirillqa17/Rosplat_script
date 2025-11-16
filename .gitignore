@@ -1,0 +1,25 @@
+# Конфиденциальные данные
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Логи
+*.log
+
+RosPlat.html
+RosPlat_files/
+google-chrome-stable_current_amd64.deb
