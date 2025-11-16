@@ -52,23 +52,71 @@ def send_telegram_message(message):
         print(f"❌ Ошибка при отправке в Telegram: {e}")
         return False
 
-def get_min_amount():
-    """Запрашивает у пользователя минимальную сумму для проверки заявок"""
+def get_price_ranges():
+    """Запрашивает у пользователя ценовые диапазоны для проверки заявок"""
+    ranges = []
+
     while True:
         try:
             print("\n" + "="*50)
-            amount = input("Введите минимальную сумму заявки (например, 10000 или 15000): ")
-            min_amount = float(amount)
-            if min_amount > 0:
-                print(f"Установлена минимальная сумма: {min_amount} руб.")
-                print("="*50 + "\n")
-                return min_amount
+            count = input("Сколько ценовых диапазонов вы хотите использовать? (например, 1, 2, 3): ")
+            num_ranges = int(count)
+            if num_ranges > 0:
+                break
             else:
-                print("Сумма должна быть больше 0!")
+                print("Количество должно быть больше 0!")
         except ValueError:
             print("Ошибка! Введите корректное число.")
 
-def check_page_for_requests(driver, min_amount, page_num):
+    print("="*50)
+    print("\nВводите диапазоны в формате: минимум-максимум")
+    print("Например: 10000-14000 или 20000-100000")
+    print("="*50 + "\n")
+
+    for i in range(num_ranges):
+        while True:
+            try:
+                range_input = input(f"Диапазон #{i+1}: ")
+                parts = range_input.strip().replace(" ", "").split("-")
+
+                if len(parts) != 2:
+                    print("Ошибка! Формат должен быть: минимум-максимум (например, 10000-15000)")
+                    continue
+
+                min_val = float(parts[0])
+                max_val = float(parts[1])
+
+                if min_val <= 0 or max_val <= 0:
+                    print("Суммы должны быть больше 0!")
+                    continue
+
+                if min_val > max_val:
+                    print("Минимум не может быть больше максимума!")
+                    continue
+
+                ranges.append((min_val, max_val))
+                print(f"✓ Добавлен диапазон: {min_val} - {max_val} руб.")
+                break
+
+            except ValueError:
+                print("Ошибка! Введите корректные числа.")
+
+    print("\n" + "="*50)
+    print("Установленные диапазоны:")
+    for i, (min_val, max_val) in enumerate(ranges, 1):
+        print(f"  {i}. {min_val} - {max_val} руб.")
+    print("="*50 + "\n")
+
+    return ranges
+
+def check_price_in_ranges(amount, price_ranges):
+    """Проверяет, попадает ли сумма в один из диапазонов"""
+    for min_val, max_val in price_ranges:
+        if min_val <= amount <= max_val:
+            return True, f"{min_val}-{max_val}"
+    return False, None
+
+def check_page_for_requests(driver, price_ranges, page_num):
     """Проверяет заявки на текущей странице"""
     try:
         time.sleep(2)  # Ждем загрузки страницы
@@ -98,11 +146,11 @@ def check_page_for_requests(driver, min_amount, page_num):
 
                 print(f"  [{idx}/{total_requests}] ID: {payout_id}, Метод: {method}, Сумма: {amount} руб.")
 
-                # Проверяем условия: метод С2С и сумма больше минимальной
-                if amount >= min_amount:
-                    print("Сумма подходит но я сосал пенис")
-                if (method == "С2С" or method == "C2C") and amount >= min_amount:
-                    print(f"\n✅ ПОДХОДИТ! ID: {payout_id}, Метод: {method}, Сумма: {amount} >= {min_amount}")
+                # Проверяем условия: метод С2С и сумма в диапазонах
+                in_range, matching_range = check_price_in_ranges(amount, price_ranges)
+
+                if (method == "С2С" or method == "C2C") and in_range:
+                    print(f"\n✅ ПОДХОДИТ! ID: {payout_id}, Метод: {method}, Сумма: {amount} руб. (диапазон: {matching_range})")
 
                     # Находим кнопку "В работу" в последней ячейке
                     button = cells[6].find_element(By.TAG_NAME, "button")
@@ -136,7 +184,7 @@ def check_page_for_requests(driver, min_amount, page_num):
         print(f"Ошибка при проверке заявок на странице {page_num}: {e}")
         return False, 0, None
 
-def check_and_process_requests(driver, wait, min_amount, first_check=False):
+def check_and_process_requests(driver, wait, price_ranges, first_check=False):
     """Проверяет заявки на всех страницах"""
     try:
         # Только при первой проверке переходим на страницу
@@ -171,7 +219,7 @@ def check_and_process_requests(driver, wait, min_amount, first_check=False):
             print(f"{'='*50}")
 
             # Проверяем заявки на текущей странице
-            found, total_requests, request_data = check_page_for_requests(driver, min_amount, page_num)
+            found, total_requests, request_data = check_page_for_requests(driver, price_ranges, page_num)
 
             if found:
                 # Нашли подходящую заявку - выходим
@@ -240,8 +288,8 @@ def main():
         print("ОШИБКА: Не найдены логин или пароль в .env файле!")
         return
 
-    # Запрашиваем минимальную сумму у пользователя
-    min_amount = get_min_amount()
+    # Запрашиваем ценовые диапазоны у пользователя
+    price_ranges = get_price_ranges()
     son = 5
 
 
@@ -295,7 +343,9 @@ def main():
         print("Авторизация успешна!")
         print(f"Начинаю мониторинг заявок с параметрами:")
         print(f"  - Метод оплаты: С2С")
-        print(f"  - Минимальная сумма: {min_amount} руб.")
+        print(f"  - Ценовые диапазоны:")
+        for i, (min_val, max_val) in enumerate(price_ranges, 1):
+            print(f"    {i}. {min_val} - {max_val} руб.")
         print(f"  - Интервал проверки: {son} секунд")
         print(f"  - Проверка нескольких страниц: Да")
         print(f"  - Telegram уведомления: Включены")
@@ -312,7 +362,7 @@ def main():
             print(f"{'#'*50}")
 
             # Проверяем и обрабатываем заявки
-            request_taken, request_data = check_and_process_requests(driver, wait, min_amount, first_check)
+            request_taken, request_data = check_and_process_requests(driver, wait, price_ranges, first_check)
             first_check = False  # После первой проверки больше не нужно использовать driver.get
 
             if request_taken:
@@ -327,8 +377,8 @@ def main():
                 input()
 
                 print("\n✅ Продолжаем работу!")
-                # Спрашиваем новую минимальную сумму
-                min_amount = get_min_amount()
+                # Спрашиваем новые ценовые диапазоны
+                price_ranges = get_price_ranges()
                 check_count = 0  # Сбрасываем счетчик
                 first_check = True  # Нужно перезагрузить страницу после завершения работы
             print(f"\n⏸️  Пауза {son} секунд до следующей проверки...")
