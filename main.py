@@ -171,7 +171,6 @@ def check_page_for_requests(driver, price_ranges, page_num):
                     )
                     send_telegram_message(telegram_message)
 
-                    time.sleep(3)
                     return True, total_requests, {"id": payout_id, "bank": bank, "method": method, "phone": phone, "amount": amount}
 
             except Exception as e:
@@ -382,7 +381,6 @@ def main():
                 check_count = 0  # Сбрасываем счетчик
                 first_check = True  # Нужно перезагрузить страницу после завершения работы
             print(f"\n⏸️  Пауза {son} секунд до следующей проверки...")
-            time.sleep(son)
 
     except KeyboardInterrupt:
         print("\n\n⚠️  Работа бота остановлена пользователем.")
